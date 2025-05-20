@@ -9,6 +9,7 @@ namespace WindowManager
         private HotkeyManager _hotkeyManager;
         private WindowManager _windowManager;
         private OverlayForm _overlayForm;
+        private PreviewForm _previewForm;
         private NotifyIcon _notifyIcon;
         private Label _statusLabel;
         private Button _testButton;
@@ -17,9 +18,10 @@ namespace WindowManager
         {
             InitializeComponents();
 
-            // Initialize managers
+            // Initialize managers and forms
             _windowManager = new WindowManager();
             _overlayForm = new OverlayForm(_windowManager);
+            _previewForm = new PreviewForm(_windowManager);
 
             // Set up hotkey manager
             _hotkeyManager = new HotkeyManager();
@@ -34,14 +36,14 @@ namespace WindowManager
 
         private void InitializeComponents()
         {
-            this.Text = "Window Manager (Ctrl+Shift)";
+            this.Text = "Window Manager (Ctrl+Y)";
             this.Size = new Size(400, 300);
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
 
             // Add status label
             _statusLabel = new Label();
-            _statusLabel.Text = "Ctrl: ❌ Shift: ❌";
+            _statusLabel.Text = "Ctrl: ❌ Y: ❌";
             _statusLabel.AutoSize = true;
             _statusLabel.Font = new Font("Segoe UI", 12);
             _statusLabel.Location = new Point(20, 20);
@@ -54,21 +56,39 @@ namespace WindowManager
             _testButton.Location = new Point(20, 60);
             _testButton.Click += (s, e) =>
             {
-                _windowManager.StartWindowManagement();
-                _overlayForm.Activate();
-                MessageBox.Show("Move your mouse to different corners to position the window.\n\nPress OK to end test and restore windows",
-                    "Test Active", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                _overlayForm.Deactivate();
-                _windowManager.EndWindowManagement();
+                try
+                {
+                    _windowManager.StartWindowManagement();
+
+                    // Create preview of active window
+                    _previewForm.SetWindowPreview(_windowManager.GetActiveWindow());
+                    _previewForm.Activate();
+
+                    // Show overlay
+                    _overlayForm.Activate();
+
+                    MessageBox.Show("Move your mouse to different corners to position the window.\n\nPress OK to end test and restore windows",
+                        "Test Active", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    _overlayForm.Deactivate();
+                    _previewForm.Deactivate();
+                    _windowManager.EndWindowManagement();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error during test: {ex.Message}", "Test Error",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             };
             this.Controls.Add(_testButton);
 
             // Add help text
             Label helpLabel = new Label();
             helpLabel.Text = "Instructions:\n" +
-                            "1. Hold Ctrl+Shift to activate window management\n" +
-                            "2. Move mouse to any corner to position the active window\n" +
-                            "3. Release Ctrl+Shift to confirm position\n\n" +
+                            "1. Hold Ctrl+Y to activate window management\n" +
+                            "2. A miniature preview will follow your cursor\n" +
+                            "3. Move mouse to any corner to position the active window\n" +
+                            "4. Release Ctrl+Y to confirm position\n\n" +
                             "This will minimize other windows while active.";
             helpLabel.Font = new Font("Segoe UI", 9);
             helpLabel.AutoSize = true;
@@ -115,21 +135,56 @@ namespace WindowManager
             }
 
             _statusLabel.Text = $"Ctrl: {(_hotkeyManager.IsCtrlKeyDown ? "✅" : "❌")} " +
-                               $"Shift: {(_hotkeyManager.IsShiftKeyDown ? "✅" : "❌")}";
+                               $"Y: {(_hotkeyManager.IsYKeyDown ? "✅" : "❌")}";
         }
 
         private void HotkeyManager_HotkeyActivated(object sender, EventArgs e)
         {
-            _statusLabel.Text = "Hotkey Activated!";
-            _windowManager.StartWindowManagement();
-            _overlayForm.Activate();
+            try
+            {
+                if (InvokeRequired)
+                {
+                    Invoke(new Action<object, EventArgs>(HotkeyManager_HotkeyActivated), sender, e);
+                    return;
+                }
+
+                _statusLabel.Text = "Hotkey Activated!";
+                _windowManager.StartWindowManagement();
+
+                // Create preview of active window
+                _previewForm.SetWindowPreview(_windowManager.GetActiveWindow());
+                _previewForm.Activate();
+
+                // Show overlay
+                _overlayForm.Activate();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error activating window management: {ex.Message}",
+                                "Activation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void HotkeyManager_HotkeyDeactivated(object sender, EventArgs e)
         {
-            _statusLabel.Text = "Hotkey Deactivated!";
-            _overlayForm.Deactivate();
-            _windowManager.EndWindowManagement();
+            try
+            {
+                if (InvokeRequired)
+                {
+                    Invoke(new Action<object, EventArgs>(HotkeyManager_HotkeyDeactivated), sender, e);
+                    return;
+                }
+
+                _statusLabel.Text = "Hotkey Deactivated!";
+                _overlayForm.Deactivate();
+                _previewForm.Deactivate();
+                _windowManager.EndWindowManagement();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error deactivating window management: {ex.Message}",
+                                "Deactivation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -148,6 +203,12 @@ namespace WindowManager
 
             if (_notifyIcon != null)
                 _notifyIcon.Dispose();
+
+            if (_previewForm != null)
+                _previewForm.Dispose();
+
+            if (_overlayForm != null)
+                _overlayForm.Dispose();
         }
     }
 }

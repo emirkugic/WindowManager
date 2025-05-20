@@ -18,6 +18,7 @@ namespace WindowManager
         public const int VK_CONTROL = 0x11; // CTRL key
         public const int VK_SHIFT = 0x10;   // SHIFT key
         public const int VK_OEM_3 = 0xC0;   // Backtick/tilde key
+        public const int VK_Y = 0x59;       // Y key
 
         public const int HWND_BOTTOM = 1;
         public const int HWND_NOTOPMOST = -2;
@@ -145,6 +146,11 @@ namespace WindowManager
 
         [DllImport("user32.dll")]
         public static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
+
+        [DllImport("gdi32.dll", SetLastError = true)]
+        public static extern bool BitBlt(IntPtr hdc, int nXDest, int nYDest, int nWidth, int nHeight, IntPtr hdcSrc, int nXSrc, int nYSrc, uint dwRop);
+
+        public const uint SRCCOPY = 0x00CC0020;
         #endregion
     }
 }

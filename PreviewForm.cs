@@ -62,18 +62,40 @@ namespace WindowManager
                 int width = rect.Width;
                 int height = rect.Height;
 
+                if (width <= 0 || height <= 0)
+                {
+                    MessageBox.Show("Invalid window dimensions", "Preview Error",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
                 // Create a bitmap to hold the screenshot
                 using (Bitmap windowBitmap = new Bitmap(width, height))
                 {
                     using (Graphics g = Graphics.FromImage(windowBitmap))
                     {
-                        // Capture the window
-                        g.CopyFromScreen(rect.Left, rect.Top, 0, 0, new Size(width, height));
+                        // Get the device context of the window
+                        IntPtr hdcWindow = User32.GetDC(hWnd);
+
+                        // Get the device context of our bitmap
+                        IntPtr hdcBitmap = g.GetHdc();
+
+                        // Copy from the window to the bitmap
+                        WindowsAPI.BitBlt(hdcBitmap, 0, 0, width, height, hdcWindow, 0, 0, WindowsAPI.SRCCOPY);
+
+                        // Release the device contexts
+                        g.ReleaseHdc(hdcBitmap);
+                        User32.ReleaseDC(hWnd, hdcWindow);
                     }
 
                     // Create a scaled version for the preview
                     int previewWidth = (int)(width * _previewScale);
                     int previewHeight = (int)(height * _previewScale);
+
+                    if (_previewImage != null)
+                    {
+                        _previewImage.Dispose();
+                    }
 
                     _previewImage = new Bitmap(windowBitmap, previewWidth, previewHeight);
 
@@ -132,5 +154,15 @@ namespace WindowManager
 
             base.Dispose(disposing);
         }
+    }
+
+    // Additional User32 methods for window capture
+    internal static class User32
+    {
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        public static extern IntPtr GetDC(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        public static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
     }
 }

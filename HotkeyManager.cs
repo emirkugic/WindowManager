@@ -10,9 +10,9 @@ namespace WindowManager
         private IntPtr _hookID = IntPtr.Zero;
         private WindowsAPI.LowLevelKeyboardProc _proc;
 
-        // Changed from Win+Alt to Ctrl+Shift
+        // Changed to Ctrl+Y
         public bool IsCtrlKeyDown { get; private set; }
-        public bool IsShiftKeyDown { get; private set; }
+        public bool IsYKeyDown { get; private set; }
 
         public event EventHandler HotkeyActivated;
         public event EventHandler HotkeyDeactivated;
@@ -53,7 +53,7 @@ namespace WindowManager
                                wParam == (IntPtr)WindowsAPI.WM_SYSKEYUP;
 
                 bool oldCtrlState = IsCtrlKeyDown;
-                bool oldShiftState = IsShiftKeyDown;
+                bool oldYState = IsYKeyDown;
 
                 // Update Ctrl key state
                 if (vkCode == WindowsAPI.VK_CONTROL && isKeyDown)
@@ -61,21 +61,21 @@ namespace WindowManager
                 else if (vkCode == WindowsAPI.VK_CONTROL && isKeyUp)
                     IsCtrlKeyDown = false;
 
-                // Update Shift key state
-                if (vkCode == WindowsAPI.VK_SHIFT && isKeyDown)
-                    IsShiftKeyDown = true;
-                else if (vkCode == WindowsAPI.VK_SHIFT && isKeyUp)
-                    IsShiftKeyDown = false;
+                // Update Y key state
+                if (vkCode == WindowsAPI.VK_Y && isKeyDown)
+                    IsYKeyDown = true;
+                else if (vkCode == WindowsAPI.VK_Y && isKeyUp)
+                    IsYKeyDown = false;
 
                 // If key state changed, trigger the event
-                if (oldCtrlState != IsCtrlKeyDown || oldShiftState != IsShiftKeyDown)
+                if (oldCtrlState != IsCtrlKeyDown || oldYState != IsYKeyDown)
                 {
                     KeyStateChanged?.Invoke(this, EventArgs.Empty);
                 }
 
-                // Check for hotkey activation (Ctrl+Shift)
-                bool wasActive = oldCtrlState && oldShiftState;
-                bool isActive = IsCtrlKeyDown && IsShiftKeyDown;
+                // Check for hotkey activation (Ctrl+Y)
+                bool wasActive = oldCtrlState && oldYState;
+                bool isActive = IsCtrlKeyDown && IsYKeyDown;
 
                 if (isActive && !wasActive)
                     HotkeyActivated?.Invoke(this, EventArgs.Empty);
@@ -88,7 +88,7 @@ namespace WindowManager
 
         public bool CheckHotkeyState()
         {
-            return IsCtrlKeyDown && IsShiftKeyDown;
+            return IsCtrlKeyDown && IsYKeyDown;
         }
 
         public void Dispose()
