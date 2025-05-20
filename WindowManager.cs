@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Drawing;
+using System.Runtime.InteropServices;
 
 namespace WindowManager
 {
@@ -10,10 +11,14 @@ namespace WindowManager
         private IntPtr _activeWindow;
         private WindowsAPI.RECT _originalWindowRect;
         private Dictionary<string, Rectangle> _presets;
+        private List<IntPtr> _minimizedWindows;
+
+        public IntPtr GetActiveWindow() => _activeWindow;
 
         public WindowManager()
         {
             _presets = new Dictionary<string, Rectangle>();
+            _minimizedWindows = new List<IntPtr>();
             InitializeDefaultPresets();
         }
 
@@ -37,14 +42,17 @@ namespace WindowManager
 
         public void StartWindowManagement()
         {
+            // Clear any previous list
+            _minimizedWindows.Clear();
+
             // Store the active window
             _activeWindow = WindowsAPI.GetForegroundWindow();
 
             // Store the original window rect
             WindowsAPI.GetWindowRect(_activeWindow, out _originalWindowRect);
 
-            // Hide other windows
-            HideOtherWindows();
+            // Minimize other visible application windows
+            MinimizeOtherWindows();
 
             // Show preview of the active window
             ShowWindowPreview();
@@ -52,11 +60,11 @@ namespace WindowManager
 
         public void EndWindowManagement()
         {
-            // Show all windows again
-            ShowAllWindows();
+            // Restore minimized windows
+            RestoreMinimizedWindows();
         }
 
-        private void HideOtherWindows()
+        private void MinimizeOtherWindows()
         {
             WindowsAPI.EnumWindows(EnumWindowsCallback, IntPtr.Zero);
         }
@@ -67,41 +75,51 @@ namespace WindowManager
             if (hWnd == _activeWindow)
                 return true;
 
-            // Check if the window is visible
-            if (WindowsAPI.IsWindowVisible(hWnd))
-            {
-                StringBuilder sb = new StringBuilder(256);
-                WindowsAPI.GetWindowText(hWnd, sb, 256);
+            // Skip invisible windows
+            if (!WindowsAPI.IsWindowVisible(hWnd))
+                return true;
 
-                // Skip windows with empty titles (often system windows)
-                if (sb.Length > 0)
-                {
-                    // Hide the window
-                    WindowsAPI.ShowWindow(hWnd, 0); // SW_HIDE = 0
-                }
+            // Get window title
+            StringBuilder sb = new StringBuilder(256);
+            WindowsAPI.GetWindowText(hWnd, sb, 256);
+
+            // Skip windows with empty titles (often system windows)
+            if (sb.Length == 0)
+                return true;
+
+            // Skip windows that are already minimized
+            WindowsAPI.WINDOWPLACEMENT placement = new WindowsAPI.WINDOWPLACEMENT();
+            placement.length = Marshal.SizeOf(placement);
+            WindowsAPI.GetWindowPlacement(hWnd, ref placement);
+            if (placement.showCmd == WindowsAPI.SW_SHOWMINIMIZED)
+                return true;
+
+            // Check if window has a visible frame (i.e., it's a regular application window)
+            long style = WindowsAPI.GetWindowLong(hWnd, WindowsAPI.GWL_STYLE);
+            bool hasFrame = (style & WindowsAPI.WS_CAPTION) != 0;
+
+            if (hasFrame && sb.Length > 0)
+            {
+                // Add to our list of windows we're minimizing
+                _minimizedWindows.Add(hWnd);
+
+                // Minimize the window
+                WindowsAPI.ShowWindow(hWnd, WindowsAPI.SW_MINIMIZE);
             }
 
             return true;
         }
 
-        private void ShowAllWindows()
+        private void RestoreMinimizedWindows()
         {
-            WindowsAPI.EnumWindows((hWnd, lParam) =>
+            // Only restore windows that we minimized
+            foreach (IntPtr hWnd in _minimizedWindows)
             {
-                if (hWnd != _activeWindow && WindowsAPI.IsWindowVisible(hWnd) == false)
-                {
-                    StringBuilder sb = new StringBuilder(256);
-                    WindowsAPI.GetWindowText(hWnd, sb, 256);
+                WindowsAPI.ShowWindow(hWnd, WindowsAPI.SW_RESTORE);
+            }
 
-                    // Skip windows with empty titles
-                    if (sb.Length > 0)
-                    {
-                        // Show the window
-                        WindowsAPI.ShowWindow(hWnd, 1); // SW_SHOWNORMAL = 1
-                    }
-                }
-                return true;
-            }, IntPtr.Zero);
+            // Clear the list
+            _minimizedWindows.Clear();
         }
 
         private void ShowWindowPreview()

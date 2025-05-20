@@ -17,7 +17,7 @@ namespace WindowManager
             this.FormBorderStyle = FormBorderStyle.None;
             this.ShowInTaskbar = false;
             this.TopMost = true;
-            this.Opacity = 0.5;
+            this.Opacity = 0.3; // Lower opacity for better visibility
             this.BackColor = Color.Black;
 
             // Set form to cover the entire screen
@@ -25,17 +25,16 @@ namespace WindowManager
 
             // Set up mouse move handler
             this.MouseMove += OverlayForm_MouseMove;
+        }
 
-            // Manually set the form to click-through after it's shown
-            this.Shown += (s, e) =>
-            {
-                int exStyle = WindowsAPI.GetWindowLong(this.Handle, WindowsAPI.GWL_EXSTYLE);
-                exStyle |= WindowsAPI.WS_EX_TRANSPARENT | WindowsAPI.WS_EX_LAYERED;
-                WindowsAPI.SetWindowLong(this.Handle, WindowsAPI.GWL_EXSTYLE, exStyle);
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
 
-                // Set the form opacity using the Windows API
-                WindowsAPI.SetLayeredWindowAttributes(this.Handle, 0, 128, WindowsAPI.LWA_ALPHA);
-            };
+            // Make the form click-through after it's shown
+            int exStyle = WindowsAPI.GetWindowLong(this.Handle, WindowsAPI.GWL_EXSTYLE);
+            exStyle |= WindowsAPI.WS_EX_TRANSPARENT | WindowsAPI.WS_EX_LAYERED;
+            WindowsAPI.SetWindowLong(this.Handle, WindowsAPI.GWL_EXSTYLE, exStyle);
         }
 
         public new void Activate()
@@ -44,10 +43,6 @@ namespace WindowManager
             _isActive = true;
             this.Show();
             this.BringToFront();
-            this.Update();
-
-            // Force redraw
-            this.Invalidate();
         }
 
         public new void Deactivate()
@@ -63,8 +58,6 @@ namespace WindowManager
                 Point cursorPos = new Point(e.X, e.Y);
                 string corner = _windowManager.GetCornerFromPosition(cursorPos);
                 _windowManager.MoveWindowToCorner(corner);
-
-                this.Invalidate();
             }
         }
 

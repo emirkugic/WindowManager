@@ -35,7 +35,7 @@ namespace WindowManager
         private void InitializeComponents()
         {
             this.Text = "Window Manager (Ctrl+Shift)";
-            this.Size = new Size(400, 250);
+            this.Size = new Size(400, 300);
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
 
@@ -56,12 +56,24 @@ namespace WindowManager
             {
                 _windowManager.StartWindowManagement();
                 _overlayForm.Activate();
-                MessageBox.Show("Press OK to end test and restore windows", "Test Active",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Move your mouse to different corners to position the window.\n\nPress OK to end test and restore windows",
+                    "Test Active", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 _overlayForm.Deactivate();
                 _windowManager.EndWindowManagement();
             };
             this.Controls.Add(_testButton);
+
+            // Add help text
+            Label helpLabel = new Label();
+            helpLabel.Text = "Instructions:\n" +
+                            "1. Hold Ctrl+Shift to activate window management\n" +
+                            "2. Move mouse to any corner to position the active window\n" +
+                            "3. Release Ctrl+Shift to confirm position\n\n" +
+                            "This will minimize other windows while active.";
+            helpLabel.Font = new Font("Segoe UI", 9);
+            helpLabel.AutoSize = true;
+            helpLabel.Location = new Point(20, 110);
+            this.Controls.Add(helpLabel);
 
             // Create notify icon
             _notifyIcon = new NotifyIcon();

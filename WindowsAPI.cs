@@ -17,6 +17,7 @@ namespace WindowManager
         public const int VK_RWIN = 0x5C;  // Right Windows key
         public const int VK_CONTROL = 0x11; // CTRL key
         public const int VK_SHIFT = 0x10;   // SHIFT key
+        public const int VK_OEM_3 = 0xC0;   // Backtick/tilde key
 
         public const int HWND_BOTTOM = 1;
         public const int HWND_NOTOPMOST = -2;
@@ -30,11 +31,20 @@ namespace WindowManager
         public const uint SWP_NOACTIVATE = 0x0010;
 
         public const int GWL_EXSTYLE = -20;
+        public const int GWL_STYLE = -16;
         public const int WS_EX_TRANSPARENT = 0x00000020;
         public const int WS_EX_TOOLWINDOW = 0x00000080;
         public const int WS_EX_LAYERED = 0x00080000;
+        public const int WS_CAPTION = 0x00C00000;
 
         public const byte LWA_ALPHA = 0x02;
+
+        public const int SW_HIDE = 0;
+        public const int SW_SHOWNORMAL = 1;
+        public const int SW_SHOWMINIMIZED = 2;
+        public const int SW_SHOWMAXIMIZED = 3;
+        public const int SW_MINIMIZE = 6;
+        public const int SW_RESTORE = 9;
         #endregion
 
         #region Structures
@@ -65,6 +75,17 @@ namespace WindowManager
             public uint flags;
             public uint time;
             public IntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct WINDOWPLACEMENT
+        {
+            public int length;
+            public int flags;
+            public int showCmd;
+            public POINT ptMinPosition;
+            public POINT ptMaxPosition;
+            public RECT rcNormalPosition;
         }
         #endregion
 
@@ -121,6 +142,9 @@ namespace WindowManager
 
         [DllImport("user32.dll")]
         public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        [DllImport("user32.dll")]
+        public static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
         #endregion
     }
 }
