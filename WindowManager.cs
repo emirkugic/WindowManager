@@ -10,6 +10,8 @@ namespace WindowManager
     {
         private IntPtr _activeWindow;
         private WindowsAPI.RECT _originalWindowRect;
+        private WindowsAPI.WINDOWPLACEMENT _originalWindowPlacement;
+        private bool _wasMaximized;
         private Dictionary<string, Rectangle> _presets;
         private List<IntPtr> _minimizedWindows;
 
@@ -48,11 +50,25 @@ namespace WindowManager
             // Store the active window
             _activeWindow = WindowsAPI.GetForegroundWindow();
 
+            // Check if window is maximized
+            _wasMaximized = WindowsAPI.IsZoomed(_activeWindow);
+
+            // Save original window placement (includes state and position)
+            _originalWindowPlacement = new WindowsAPI.WINDOWPLACEMENT();
+            _originalWindowPlacement.length = Marshal.SizeOf(_originalWindowPlacement);
+            WindowsAPI.GetWindowPlacement(_activeWindow, ref _originalWindowPlacement);
+
             // Store the original window rect
             WindowsAPI.GetWindowRect(_activeWindow, out _originalWindowRect);
 
             // Minimize other visible application windows
             MinimizeOtherWindows();
+
+            // If maximized, restore it to normal state first
+            if (_wasMaximized)
+            {
+                WindowsAPI.ShowWindow(_activeWindow, WindowsAPI.SW_RESTORE);
+            }
 
             // Show preview of the active window
             ShowWindowPreview();
@@ -62,6 +78,27 @@ namespace WindowManager
         {
             // Restore minimized windows
             RestoreMinimizedWindows();
+        }
+
+        public void CancelWindowManagement()
+        {
+            // Restore the original window state and position
+            RestoreOriginalWindowState();
+
+            // Restore minimized windows
+            RestoreMinimizedWindows();
+        }
+
+        private void RestoreOriginalWindowState()
+        {
+            // Reset the window placement to the original state
+            WindowsAPI.SetWindowPlacement(_activeWindow, ref _originalWindowPlacement);
+
+            // If it was maximized, make sure it's maximized again
+            if (_wasMaximized)
+            {
+                WindowsAPI.ShowWindow(_activeWindow, WindowsAPI.SW_MAXIMIZE);
+            }
         }
 
         private void MinimizeOtherWindows()
@@ -124,13 +161,17 @@ namespace WindowManager
 
         private void ShowWindowPreview()
         {
+            // Get current dimensions (might be different than original if we've restored from maximized)
+            WindowsAPI.RECT currentRect;
+            WindowsAPI.GetWindowRect(_activeWindow, out currentRect);
+
             // Calculate a slightly smaller size for preview
-            int previewWidth = (int)(_originalWindowRect.Width * 0.9);
-            int previewHeight = (int)(_originalWindowRect.Height * 0.9);
+            int previewWidth = (int)(currentRect.Width * 0.9);
+            int previewHeight = (int)(currentRect.Height * 0.9);
 
             // Center the preview
-            int previewX = _originalWindowRect.Left + (_originalWindowRect.Width - previewWidth) / 2;
-            int previewY = _originalWindowRect.Top + (_originalWindowRect.Height - previewHeight) / 2;
+            int previewX = currentRect.Left + (currentRect.Width - previewWidth) / 2;
+            int previewY = currentRect.Top + (currentRect.Height - previewHeight) / 2;
 
             // Set the new window position and size
             WindowsAPI.SetWindowPos(
@@ -197,15 +238,7 @@ namespace WindowManager
 
         public void RestoreWindowPosition()
         {
-            WindowsAPI.SetWindowPos(
-                _activeWindow,
-                (IntPtr)WindowsAPI.HWND_TOP,
-                _originalWindowRect.Left,
-                _originalWindowRect.Top,
-                _originalWindowRect.Width,
-                _originalWindowRect.Height,
-                WindowsAPI.SWP_SHOWWINDOW
-            );
+            RestoreOriginalWindowState();
         }
     }
 }

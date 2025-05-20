@@ -10,13 +10,19 @@ namespace WindowManager
         private IntPtr _hookID = IntPtr.Zero;
         private WindowsAPI.LowLevelKeyboardProc _proc;
 
-        // Changed to Ctrl+Y
-        public bool IsCtrlKeyDown { get; private set; }
+        // Track both left and right Ctrl keys separately
+        public bool IsLeftCtrlKeyDown { get; private set; }
+        public bool IsRightCtrlKeyDown { get; private set; }
         public bool IsYKeyDown { get; private set; }
+        public bool IsBKeyDown { get; private set; }
+
+        // Property that checks if either Ctrl key is down
+        public bool IsCtrlKeyDown => IsLeftCtrlKeyDown || IsRightCtrlKeyDown;
 
         public event EventHandler HotkeyActivated;
         public event EventHandler HotkeyDeactivated;
         public event EventHandler KeyStateChanged;
+        public event EventHandler ExitHotkeyPressed; // New event for Ctrl+B
 
         public HotkeyManager()
         {
@@ -45,36 +51,77 @@ namespace WindowManager
         {
             if (nCode >= 0)
             {
-                int vkCode = Marshal.ReadInt32(lParam);
+                WindowsAPI.KBDLLHOOKSTRUCT keyInfo = (WindowsAPI.KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(WindowsAPI.KBDLLHOOKSTRUCT));
 
                 bool isKeyDown = wParam == (IntPtr)WindowsAPI.WM_KEYDOWN ||
                                 wParam == (IntPtr)WindowsAPI.WM_SYSKEYDOWN;
                 bool isKeyUp = wParam == (IntPtr)WindowsAPI.WM_KEYUP ||
                                wParam == (IntPtr)WindowsAPI.WM_SYSKEYUP;
 
-                bool oldCtrlState = IsCtrlKeyDown;
+                bool oldLeftCtrlState = IsLeftCtrlKeyDown;
+                bool oldRightCtrlState = IsRightCtrlKeyDown;
                 bool oldYState = IsYKeyDown;
+                bool oldBState = IsBKeyDown;
 
-                // Update Ctrl key state
-                if (vkCode == WindowsAPI.VK_CONTROL && isKeyDown)
-                    IsCtrlKeyDown = true;
-                else if (vkCode == WindowsAPI.VK_CONTROL && isKeyUp)
-                    IsCtrlKeyDown = false;
+                // Update Left Ctrl key state
+                if (keyInfo.vkCode == (uint)WindowsAPI.VK_LCONTROL && isKeyDown)
+                    IsLeftCtrlKeyDown = true;
+                else if (keyInfo.vkCode == (uint)WindowsAPI.VK_LCONTROL && isKeyUp)
+                    IsLeftCtrlKeyDown = false;
+
+                // Update Right Ctrl key state
+                if (keyInfo.vkCode == (uint)WindowsAPI.VK_RCONTROL && isKeyDown)
+                    IsRightCtrlKeyDown = true;
+                else if (keyInfo.vkCode == (uint)WindowsAPI.VK_RCONTROL && isKeyUp)
+                    IsRightCtrlKeyDown = false;
+
+                // Also check for generic CONTROL key (some keyboards might report this)
+                if (keyInfo.vkCode == (uint)WindowsAPI.VK_CONTROL && isKeyDown)
+                {
+                    // Check extended flag to determine left/right
+                    if ((keyInfo.flags & 0x01) == 0x01)
+                        IsRightCtrlKeyDown = true;
+                    else
+                        IsLeftCtrlKeyDown = true;
+                }
+                else if (keyInfo.vkCode == (uint)WindowsAPI.VK_CONTROL && isKeyUp)
+                {
+                    // Check extended flag to determine left/right
+                    if ((keyInfo.flags & 0x01) == 0x01)
+                        IsRightCtrlKeyDown = false;
+                    else
+                        IsLeftCtrlKeyDown = false;
+                }
 
                 // Update Y key state
-                if (vkCode == WindowsAPI.VK_Y && isKeyDown)
+                if (keyInfo.vkCode == (uint)WindowsAPI.VK_Y && isKeyDown)
                     IsYKeyDown = true;
-                else if (vkCode == WindowsAPI.VK_Y && isKeyUp)
+                else if (keyInfo.vkCode == (uint)WindowsAPI.VK_Y && isKeyUp)
                     IsYKeyDown = false;
 
+                // Update B key state
+                if (keyInfo.vkCode == (uint)WindowsAPI.VK_B && isKeyDown)
+                    IsBKeyDown = true;
+                else if (keyInfo.vkCode == (uint)WindowsAPI.VK_B && isKeyUp)
+                    IsBKeyDown = false;
+
                 // If key state changed, trigger the event
-                if (oldCtrlState != IsCtrlKeyDown || oldYState != IsYKeyDown)
+                if (oldLeftCtrlState != IsLeftCtrlKeyDown ||
+                    oldRightCtrlState != IsRightCtrlKeyDown ||
+                    oldYState != IsYKeyDown ||
+                    oldBState != IsBKeyDown)
                 {
                     KeyStateChanged?.Invoke(this, EventArgs.Empty);
                 }
 
+                // Check for Ctrl+B exit shortcut
+                if (IsCtrlKeyDown && IsBKeyDown && (!oldBState || !IsCtrlKeyDown))
+                {
+                    ExitHotkeyPressed?.Invoke(this, EventArgs.Empty);
+                }
+
                 // Check for hotkey activation (Ctrl+Y)
-                bool wasActive = oldCtrlState && oldYState;
+                bool wasActive = (oldLeftCtrlState || oldRightCtrlState) && oldYState;
                 bool isActive = IsCtrlKeyDown && IsYKeyDown;
 
                 if (isActive && !wasActive)

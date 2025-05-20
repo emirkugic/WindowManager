@@ -45,9 +45,10 @@ namespace WindowManager
                     UpdatePreviewBasedOnCorner(corner);
                 }
 
-                // Move the preview to follow the cursor offset by a margin
-                this.Left = cursorPos.X + 15;
-                this.Top = cursorPos.Y + 15;
+                // Position the preview so the cursor is centered in it
+                // Instead of following offset, center the preview on the cursor
+                this.Left = cursorPos.X - (this.Width / 2);
+                this.Top = cursorPos.Y - (this.Height / 2);
             }
         }
 
@@ -130,6 +131,18 @@ namespace WindowManager
                 using (Pen pen = new Pen(Color.DodgerBlue, 2))
                 {
                     e.Graphics.DrawRectangle(pen, 0, 0, this.Width - 1, this.Height - 1);
+                }
+
+                // Draw a crosshair in the center to indicate cursor position
+                int centerX = this.Width / 2;
+                int centerY = this.Height / 2;
+
+                using (Pen pen = new Pen(Color.Red, 1))
+                {
+                    // Horizontal line
+                    e.Graphics.DrawLine(pen, centerX - 5, centerY, centerX + 5, centerY);
+                    // Vertical line
+                    e.Graphics.DrawLine(pen, centerX, centerY - 5, centerX, centerY + 5);
                 }
             }
         }

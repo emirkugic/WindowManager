@@ -12,13 +12,16 @@ namespace WindowManager
         public const int WM_SYSKEYDOWN = 0x0104;
         public const int WM_SYSKEYUP = 0x0105;
 
-        public const int VK_MENU = 0x12;  // ALT key
-        public const int VK_LWIN = 0x5B;  // Left Windows key
-        public const int VK_RWIN = 0x5C;  // Right Windows key
-        public const int VK_CONTROL = 0x11; // CTRL key
-        public const int VK_SHIFT = 0x10;   // SHIFT key
-        public const int VK_OEM_3 = 0xC0;   // Backtick/tilde key
-        public const int VK_Y = 0x59;       // Y key
+        public const int VK_MENU = 0x12;      // ALT key
+        public const int VK_LWIN = 0x5B;      // Left Windows key
+        public const int VK_RWIN = 0x5C;      // Right Windows key
+        public const int VK_CONTROL = 0x11;   // CTRL key (generic)
+        public const int VK_LCONTROL = 0xA2;  // Left CTRL key
+        public const int VK_RCONTROL = 0xA3;  // Right CTRL key
+        public const int VK_SHIFT = 0x10;     // SHIFT key
+        public const int VK_OEM_3 = 0xC0;     // Backtick/tilde key
+        public const int VK_Y = 0x59;         // Y key
+        public const int VK_B = 0x42;         // B key
 
         public const int HWND_BOTTOM = 1;
         public const int HWND_NOTOPMOST = -2;
@@ -46,6 +49,13 @@ namespace WindowManager
         public const int SW_SHOWMAXIMIZED = 3;
         public const int SW_MINIMIZE = 6;
         public const int SW_RESTORE = 9;
+        public const int SW_MAXIMIZE = 3;
+
+        // Window placement flags
+        public const int WPF_SETMINPOSITION = 0x0001;
+        public const int WPF_RESTORETOMAXIMIZED = 0x0002;
+
+        public const uint SRCCOPY = 0x00CC0020;
         #endregion
 
         #region Structures
@@ -147,10 +157,23 @@ namespace WindowManager
         [DllImport("user32.dll")]
         public static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
 
+        [DllImport("user32.dll")]
+        public static extern bool SetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
+
         [DllImport("gdi32.dll", SetLastError = true)]
         public static extern bool BitBlt(IntPtr hdc, int nXDest, int nYDest, int nWidth, int nHeight, IntPtr hdcSrc, int nXSrc, int nYSrc, uint dwRop);
 
-        public const uint SRCCOPY = 0x00CC0020;
+        // For key state detection
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern short GetAsyncKeyState(int vKey);
+
+        // For determining whether a key is pressed
+        [DllImport("user32.dll")]
+        public static extern short GetKeyState(int nVirtKey);
+
+        // For checking if a window is maximized
+        [DllImport("user32.dll")]
+        public static extern bool IsZoomed(IntPtr hWnd);
         #endregion
     }
 }
